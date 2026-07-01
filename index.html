@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>יומן תורים - מרפאה</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    direction: rtl;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    background: #f1f5f9;
+    color: #1e293b;
+  }
+  .app { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  header {
+    background: #1e40af;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  .tariff-strip { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; }
+  .tariff-pill { background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 20px; }
+  .backup-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .backup-bar button {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .backup-bar button:hover { background: rgba(255,255,255,0.25); }
+  .sync-status {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.1);
+  }
+  .sync-status.ok { background: rgba(134,239,172,0.25); color: #bbf7d0; }
+  .sync-status.err { background: rgba(252,165,165,0.25); color: #fecaca; }
+  .sync-status.loading { background: rgba(253,230,138,0.25); color: #fde68a; }
+
+  /* Login screen */
+  #loginScreen {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  #loginScreen h2 { color: #1e40af; margin-bottom: 8px; }
+  #loginScreen p { color: #64748b; margin-bottom: 24px; }
+  .google-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 15px;
+    cursor: pointer;
+    color: #1e293b;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .google-btn:hover { background: #f8fafc; }
+  .google-btn img { width: 20px; }
+
+  .views { display: none; }
+  .views.active { display: block; }
+
+  .month-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .month-nav button {
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .month-nav button:hover { background: #f8fafc; }
+  .month-title { font-size: 18px; font-weight: 600; }
+
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .dow-label { text-align: center; font-size: 12px; color: #64748b; font-weight: 600; padding: 6px 0; }
+  .day-cell {
+    background: white;
+    border-radius: 10px;
+    min-height: 80px;
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    cursor: default;
+  }
+  .day-cell.empty { background: transparent; border: none; }
+  .day-cell.workday { cursor: pointer; border: 1px solid #93c5fd; }
+  .day-cell.workday:hover { background: #eff6ff; border-color: #2563eb; }
+  .day-cell.workday.wed { border-color: #86efac; }
+  .day-cell.workday.wed:hover { background: #f0fdf4; border-color: #16a34a; }
+  .day-num { font-weight: 600; font-size: 14px; }
+  .heb-date { font-size: 10px; color: #64748b; margin-top: 2px; }
+  .day-summary { font-size: 10px; margin-top: 6px; color: #475569; }
+  .booked-count {
+    display: inline-block;
+    background: #fde68a;
+    color: #92400e;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .day-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .day-view-header .back-btn, .day-view-header .print-btn {
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .day-view-header .print-btn { background: #1e40af; color: white; border: none; }
+  .day-view-title { font-size: 18px; font-weight: 600; }
+  .day-view-sub { font-size: 13px; color: #64748b; }
+
+  .slots-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .slots-table th { background: #1e40af; color: white; padding: 10px; font-size: 13px; text-align: right; }
+  .slots-table td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
+  .slot-row { cursor: pointer; }
+  .slot-row:hover { background: #f8fafc; }
+  .slot-time { font-weight: 600; color: #1e40af; width: 70px; }
+  .slot-empty { color: #94a3b8; }
+  .slot-booked { color: #166534; font-weight: 500; }
+  .slot-canceled { color: #b91c1c; font-weight: 500; }
+  .slot-price {
+    display: inline-block;
+    background: #fef9c3;
+    color: #854d0e;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15,23,42,0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .overlay.active { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    width: 360px;
+    max-width: 90vw;
+  }
+  .modal h3 { margin: 0 0 4px; font-size: 16px; }
+  .modal .modal-sub { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+  .modal label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; }
+  .modal input, .modal select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    direction: rtl;
+  }
+  .modal-price-display {
+    margin-top: 14px;
+    background: #fef9c3;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #854d0e;
+    text-align: center;
+  }
+  .modal-buttons { display: flex; gap: 8px; margin-top: 20px; }
+  .modal-buttons button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-save { background: #1e40af; color: white; }
+  .btn-cancel-appt { background: #fee2e2; color: #b91c1c; }
+  .btn-close { background: #f1f5f9; color: #475569; }
+  .btn-clear { background: #f1f5f9; color: #475569; }
+
+  .settings-modal label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  .settings-modal input[type="number"] {
+    width: 90px;
+    padding: 6px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 200;
+    display: none;
+  }
+  .toast.show { display: block; }
+
+  #printArea { display: none; }
+
+  @media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printArea {
+      display: block;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      padding: 20px;
+    }
+    .print-header { text-align: center; margin-bottom: 16px; }
+    .print-header h2 { margin: 0 0 4px; font-size: 18px; }
+    .print-header div { font-size: 13px; color: #555; }
+    .print-table { width: 100%; border-collapse: collapse; }
+    .print-table th, .print-table td {
+      border: 1px solid #999;
+      padding: 6px 8px;
+      font-size: 12px;
+      text-align: right;
+    }
+    .print-table th { background: #eee; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>יומן תורים - מרפאה</h1>
+    <div class="tariff-strip" id="tariffStrip"></div>
+    <div class="backup-bar">
+      <span class="sync-status" id="syncStatus">לא מחובר</span>
+      <button onclick="openSettings()">עריכת מחירים</button>
+      <button id="authBtn" onclick="handleAuthClick()">התחברות עם Google</button>
+      <button id="signOutBtn" onclick="handleSignOut()" style="display:none;">התנתקות</button>
+    </div>
+  </header>
+
+  <div id="loginScreen">
+    <h2>יומן תורים - מרפאה</h2>
+    <p>התחברי עם חשבון Google שלך כדי לגשת ליומן המסונכרן</p>
+    <button class="google-btn" onclick="handleAuthClick()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      התחברות עם Google
+    </button>
+  </div>
+
+  <div id="mainApp" style="display:none;">
+    <div id="monthView" class="views active">
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">‹ חודש קודם</button>
+        <div class="month-title" id="monthTitle"></div>
+        <button onclick="changeMonth(1)">חודש הבא ›</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+
+    <div id="dayView" class="views">
+      <div class="day-view-header">
+        <button class="back-btn" onclick="showMonthView()">‹ חזרה ליומן</button>
+        <div>
+          <div class="day-view-title" id="dayViewTitle"></div>
+          <div class="day-view-sub" id="dayViewSub"></div>
+        </div>
+        <button class="print-btn" onclick="printDay()">הדפסת היום</button>
+      </div>
+      <table class="slots-table">
+        <thead>
+          <tr><th style="width:70px;">שעה</th><th>מטופל</th><th>סוג ביקור</th><th>מחיר</th></tr>
+        </thead>
+        <tbody id="slotsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div id="printArea"></div>
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="modal settings-modal">
+    <h3>עריכת מחירים</h3>
+    <div class="modal-sub">המחירים יחולו אוטומטית על תורים חדשים</div>
+    <label>לקוח פרטי <input type="number" id="price-פרטי" min="0" step="10"></label>
+    <label>מכבי - ביקור ראשון <input type="number" id="price-מכבי-ראשון" min="0" step="10"></label>
+    <label>מכבי - ביקור חוזר <input type="number" id="price-מכבי-חוזר" min="0" step="10"></label>
+    <label>הפניה ממוקד מכבי <input type="number" id="price-מוקד-מכבי" min="0" step="10"></label>
+    <div class="modal-buttons">
+      <button class="btn-save" onclick="saveSettings()">שמירה</button>
+      <button class="btn-close" onclick="closeSettings()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">תור חדש</h3>
+    <div class="modal-sub" id="modalSub"></div>
+    <label>שם מטופל</label>
+    <input type="text" id="patientName" placeholder="שם מלא">
+    <label>סוג ביקור</label>
+    <select id="visitType" onchange="updatePriceDisplay()">
+      <option value="">— בחר —</option>
+      <option value="פרטי">לקוח פרטי</option>
+      <option value="מכבי-ראשון">חבר מכבי - ביקור ראשון</option>
+      <option value="מכבי-חוזר">חבר מכבי - ביקור חוזר</option>
+      <option value="מוקד-מכבי">הפניה ממוקד מכבי</option>
+    </select>
+    <div class="modal-price-display" id="priceDisplay" style="display:none;"></div>
+    <div class="modal-buttons">
+      <button class="btn-save" onclick="saveAppointment()">שמירת תור</button>
+      <button class="btn-close" onclick="closeModal()">סגירה</button>
+    </div>
+    <div class="modal-buttons" id="extraButtons" style="display:none;">
+      <button class="btn-cancel-appt" onclick="cancelAppointment()">ביטול תור</button>
+      <button class="btn-clear" onclick="clearSlot()">פינוי משבצת</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────
+const CLIENT_ID = '761751784158-c2oigm16sa7tbiqr5oikk0f2dhg1o4gc.apps.googleusercontent.com';
+const SHEET_ID  = '1hj4ZHKbTl7DQ9c8VVfVnpOuebwNC6pQfuH9tR3C4LyI';
+const SHEET_NAME = 'תורים';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+
+// ─── PRICES ────────────────────────────────────────────────
+const DEFAULT_PRICES = {
+  'פרטי':        { label: 'לקוח פרטי',          price: 250 },
+  'מכבי-ראשון':  { label: 'מכבי - ביקור ראשון',  price: 150 },
+  'מכבי-חוזר':   { label: 'מכבי - ביקור חוזר',   price: 80  },
+  'מוקד-מכבי':   { label: 'מוקד מכבי',           price: 80  }
+};
+const PRICES_KEY = 'clinic_prices_v1';
+let PRICES = {};
+try {
+  const rp = localStorage.getItem(PRICES_KEY);
+  PRICES = rp ? JSON.parse(rp) : JSON.parse(JSON.stringify(DEFAULT_PRICES));
+} catch(e) { PRICES = JSON.parse(JSON.stringify(DEFAULT_PRICES)); }
+
+function savePrices() {
+  localStorage.setItem(PRICES_KEY, JSON.stringify(PRICES));
+}
+
+// ─── STATE ─────────────────────────────────────────────────
+let accessToken = null;
+let appointments = {};   // local cache { 'YYYY-MM-DD': { 'HH:MM': {name,type,canceled} } }
+let currentMonth = new Date(2026, 5, 1);
+let activeDayKey = null;
+let activeSlotTime = null;
+
+// ─── AUTH ──────────────────────────────────────────────────
+let tokenClient;
+
+window.onload = () => {
+  // Try restore token from sessionStorage
+  const saved = sessionStorage.getItem('clinic_token');
+  if (saved) {
+    accessToken = saved;
+    onSignedIn();
+  }
+};
+
+function initTokenClient() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) { setSyncStatus('שגיאת התחברות', 'err'); return; }
+      accessToken = resp.access_token;
+      sessionStorage.setItem('clinic_token', accessToken);
+      onSignedIn();
+    }
+  });
+}
+
+function handleAuthClick() {
+  if (!tokenClient) {
+    // Wait for GSI to load
+    const interval = setInterval(() => {
+      if (window.google && google.accounts) {
+        clearInterval(interval);
+        initTokenClient();
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      }
+    }, 200);
+  } else {
+    tokenClient.requestAccessToken({ prompt: '' });
+  }
+}
+
+function handleSignOut() {
+  accessToken = null;
+  sessionStorage.removeItem('clinic_token');
+  appointments = {};
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'block';
+  document.getElementById('authBtn').style.display = 'inline-block';
+  document.getElementById('signOutBtn').style.display = 'none';
+  setSyncStatus('לא מחובר', '');
+}
+
+async function onSignedIn() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('authBtn').style.display = 'none';
+  document.getElementById('signOutBtn').style.display = 'inline-block';
+  setSyncStatus('מתחבר...', 'loading');
+  await ensureSheetExists();
+  await loadAllFromSheet();
+  renderTariffStrip();
+  renderMonth();
+}
+
+function setSyncStatus(msg, cls) {
+  const el = document.getElementById('syncStatus');
+  el.textContent = msg;
+  el.className = 'sync-status' + (cls ? ' ' + cls : '');
+}
+
+// ─── SHEETS API ────────────────────────────────────────────
+async function sheetsRequest(method, path, body) {
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets';
+  const res = await fetch(`${base}${path}`, {
+    method,
+    headers: {
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'application/json'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || res.statusText);
+  }
+  return res.json();
+}
+
+async function ensureSheetExists() {
+  try {
+    const info = await sheetsRequest('GET', `/${SHEET_ID}?fields=sheets.properties.title`);
+    const exists = info.sheets.some(s => s.properties.title === SHEET_NAME);
+    if (!exists) {
+      await sheetsRequest('POST', `/${SHEET_ID}:batchUpdate`, {
+        requests: [{ addSheet: { properties: { title: SHEET_NAME } } }]
+      });
+      // Write header row
+      await sheetsRequest('PUT',
+        `/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + '!A1:E1')}?valueInputOption=RAW`,
+        { values: [['תאריך', 'שעה', 'שם מטופל', 'סוג ביקור', 'סטטוס']] }
+      );
+    }
+  } catch(e) {
+    setSyncStatus('שגיאה בהגדרת הגיליון', 'err');
+    console.error(e);
+  }
+}
+
+async function loadAllFromSheet() {
+  try {
+    setSyncStatus('טוען נתונים...', 'loading');
+    const data = await sheetsRequest('GET',
+      `/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + '!A2:E10000')}`
+    );
+    appointments = {};
+    const rows = data.values || [];
+    rows.forEach(row => {
+      const [dateKey, time, name, type, status] = row;
+      if (!dateKey || !time) return;
+      if (!appointments[dateKey]) appointments[dateKey] = {};
+      appointments[dateKey][time] = {
+        name: name || '',
+        type: type || '',
+        canceled: status === 'מבוטל'
+      };
+    });
+    setSyncStatus('מסונכרן ✓', 'ok');
+  } catch(e) {
+    setSyncStatus('שגיאה בטעינה', 'err');
+    console.error(e);
+  }
+}
+
+async function saveSlotToSheet(dayKey, time, appt) {
+  // Find existing row or append new one
+  try {
+    setSyncStatus('שומר...', 'loading');
+    const data = await sheetsRequest('GET',
+      `/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + '!A2:B10000')}`
+    );
+    const rows = data.values || [];
+    let rowIndex = -1;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0] === dayKey && rows[i][1] === time) {
+        rowIndex = i + 2; // 1-based, +1 for header
+        break;
+      }
+    }
+
+    const rowData = [dayKey, time, appt ? appt.name : '', appt ? appt.type : '', appt ? (appt.canceled ? 'מבוטל' : 'קבוע') : ''];
+
+    if (rowIndex > 0) {
+      await sheetsRequest('PUT',
+        `/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + '!A' + rowIndex + ':E' + rowIndex)}?valueInputOption=RAW`,
+        { values: [rowData] }
+      );
+    } else {
+      await sheetsRequest('POST',
+        `/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME + '!A:E')}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+        { values: [rowData] }
+      );
+    }
+    setSyncStatus('מסונכרן ✓', 'ok');
+  } catch(e) {
+    setSyncStatus('שגיאה בשמירה', 'err');
+    console.error(e);
+  }
+}
+
+// ─── DATES / HELPERS ───────────────────────────────────────
+function hebrewDate(d) {
+  try {
+    return new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    }).format(d);
+  } catch(e) { return ''; }
+}
+
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function timeSlots(dow) {
+  let cur = dow === 1 ? 7*60 : 9*60;
+  const end = dow === 1 ? 15*60+30 : 18*60;
+  const slots = [];
+  while (cur < end) {
+    slots.push(`${String(Math.floor(cur/60)).padStart(2,'0')}:${String(cur%60).padStart(2,'0')}`);
+    cur += 10;
+  }
+  return slots;
+}
+
+// ─── RENDER ────────────────────────────────────────────────
+function renderTariffStrip() {
+  document.getElementById('tariffStrip').innerHTML =
+    Object.values(PRICES).map(p => `<span class="tariff-pill">${p.label} ₪${p.price}</span>`).join('');
+}
+
+function changeMonth(delta) {
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1);
+  renderMonth();
+}
+
+function renderMonth() {
+  const monthNames = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  document.getElementById('monthTitle').textContent = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+  ['א','ב','ג','ד','ה','ו','ש'].forEach(l => {
+    const el = document.createElement('div');
+    el.className = 'dow-label';
+    el.textContent = l;
+    grid.appendChild(el);
+  });
+  const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+  const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 0).getDate();
+  for (let i = 0; i < firstDay.getDay(); i++) {
+    const el = document.createElement('div'); el.className = 'day-cell empty'; grid.appendChild(el);
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const dow = d.getDay();
+    const isWorkday = dow === 1 || dow === 3;
+    const key = dateKey(d);
+    const cell = document.createElement('div');
+    cell.className = 'day-cell' + (isWorkday ? ' workday' + (dow===3?' wed':'') : '');
+    const bookedCount = isWorkday && appointments[key]
+      ? Object.values(appointments[key]).filter(a => a.name && !a.canceled).length : 0;
+    cell.innerHTML = `
+      <div class="day-num">${day}</div>
+      <div class="heb-date">${hebrewDate(d)}</div>
+      ${isWorkday ? `<div class="day-summary">${bookedCount>0 ? `<span class="booked-count">${bookedCount} תורים</span>` : 'זמין'}</div>` : ''}
+    `;
+    if (isWorkday) cell.onclick = () => openDayView(d);
+    grid.appendChild(cell);
+  }
+}
+
+function openDayView(d) {
+  activeDayKey = dateKey(d);
+  const dow = d.getDay();
+  document.getElementById('monthView').classList.remove('active');
+  document.getElementById('dayView').classList.add('active');
+  document.getElementById('dayViewTitle').textContent = `${dow===1?'יום שני':'יום רביעי'}, ${d.toLocaleDateString('he-IL')}`;
+  document.getElementById('dayViewSub').textContent = hebrewDate(d);
+  renderSlots(activeDayKey, dow);
+}
+
+function showMonthView() {
+  document.getElementById('dayView').classList.remove('active');
+  document.getElementById('monthView').classList.add('active');
+  renderMonth();
+}
+
+function renderSlots(key, dow) {
+  const slots = timeSlots(dow);
+  const dayData = appointments[key] || {};
+  const tbody = document.getElementById('slotsBody');
+  tbody.innerHTML = '';
+  slots.forEach(time => {
+    const appt = dayData[time];
+    const tr = document.createElement('tr');
+    tr.className = 'slot-row';
+    tr.onclick = () => openModal(key, time);
+    let nameCell, typeCell, priceCell;
+    if (appt && appt.canceled) {
+      nameCell = `<span class="slot-canceled">תור בוטל</span>`;
+      typeCell = appt.type && PRICES[appt.type] ? PRICES[appt.type].label : '';
+      priceCell = '';
+    } else if (appt && appt.name) {
+      nameCell = `<span class="slot-booked">${appt.name}</span>`;
+      typeCell = PRICES[appt.type] ? PRICES[appt.type].label : '';
+      priceCell = PRICES[appt.type] ? `<span class="slot-price">₪${PRICES[appt.type].price}</span>` : '';
+    } else {
+      nameCell = `<span class="slot-empty">פנוי</span>`;
+      typeCell = ''; priceCell = '';
+    }
+    tr.innerHTML = `<td class="slot-time">${time}</td><td>${nameCell}</td><td>${typeCell}</td><td>${priceCell}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─── MODAL ─────────────────────────────────────────────────
+function openModal(key, time) {
+  activeDayKey = key; activeSlotTime = time;
+  const appt = (appointments[key] || {})[time];
+  document.getElementById('modalTitle').textContent = 'תור — ' + time;
+  document.getElementById('modalSub').textContent = key.split('-').reverse().join('/');
+  const nameInput = document.getElementById('patientName');
+  const typeSelect = document.getElementById('visitType');
+  const extra = document.getElementById('extraButtons');
+  if (appt && appt.name) {
+    nameInput.value = appt.name;
+    typeSelect.value = appt.type || '';
+    extra.style.display = 'flex';
+  } else {
+    nameInput.value = ''; typeSelect.value = ''; extra.style.display = 'none';
+  }
+  updatePriceDisplay();
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('active');
+  activeSlotTime = null;
+}
+
+function updatePriceDisplay() {
+  const type = document.getElementById('visitType').value;
+  const display = document.getElementById('priceDisplay');
+  if (type && PRICES[type]) {
+    display.style.display = 'block';
+    display.textContent = `${PRICES[type].label} — ₪${PRICES[type].price}`;
+  } else {
+    display.style.display = 'none';
+  }
+}
+
+async function saveAppointment() {
+  const name = document.getElementById('patientName').value.trim();
+  const type = document.getElementById('visitType').value;
+  if (!name) { alert('נא להזין שם מטופל'); return; }
+  if (!type) { alert('נא לבחור סוג ביקור'); return; }
+  if (!appointments[activeDayKey]) appointments[activeDayKey] = {};
+  const appt = { name, type, canceled: false };
+  appointments[activeDayKey][activeSlotTime] = appt;
+  const d = new Date(activeDayKey);
+  renderSlots(activeDayKey, d.getDay());
+  renderMonth();
+  closeModal();
+  await saveSlotToSheet(activeDayKey, activeSlotTime, appt);
+}
+
+async function cancelAppointment() {
+  if (!appointments[activeDayKey] || !appointments[activeDayKey][activeSlotTime]) return;
+  appointments[activeDayKey][activeSlotTime].canceled = true;
+  const d = new Date(activeDayKey);
+  renderSlots(activeDayKey, d.getDay());
+  closeModal();
+  await saveSlotToSheet(activeDayKey, activeSlotTime, appointments[activeDayKey][activeSlotTime]);
+}
+
+async function clearSlot() {
+  if (appointments[activeDayKey]) {
+    delete appointments[activeDayKey][activeSlotTime];
+  }
+  const d = new Date(activeDayKey);
+  renderSlots(activeDayKey, d.getDay());
+  closeModal();
+  await saveSlotToSheet(activeDayKey, activeSlotTime, null);
+}
+
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target.id === 'modalOverlay') closeModal();
+});
+
+// ─── SETTINGS ──────────────────────────────────────────────
+function openSettings() {
+  ['פרטי','מכבי-ראשון','מכבי-חוזר','מוקד-מכבי'].forEach(id => {
+    document.getElementById('price-' + id).value = PRICES[id].price;
+  });
+  document.getElementById('settingsOverlay').classList.add('active');
+}
+function closeSettings() { document.getElementById('settingsOverlay').classList.remove('active'); }
+function saveSettings() {
+  const ids = ['פרטי','מכבי-ראשון','מכבי-חוזר','מוקד-מכבי'];
+  for (const id of ids) {
+    const val = parseFloat(document.getElementById('price-' + id).value);
+    if (isNaN(val) || val < 0) { alert('נא להזין מחיר תקין'); return; }
+    PRICES[id].price = val;
+  }
+  savePrices();
+  renderTariffStrip();
+  closeSettings();
+  showToast('המחירים עודכנו');
+  if (document.getElementById('dayView').classList.contains('active') && activeDayKey) {
+    renderSlots(activeDayKey, new Date(activeDayKey).getDay());
+  }
+}
+document.getElementById('settingsOverlay').addEventListener('click', e => {
+  if (e.target.id === 'settingsOverlay') closeSettings();
+});
+
+// ─── PRINT ─────────────────────────────────────────────────
+function printDay() {
+  if (!activeDayKey) return;
+  const d = new Date(activeDayKey);
+  const dow = d.getDay();
+  const slots = timeSlots(dow);
+  const dayData = appointments[activeDayKey] || {};
+  let rows = '';
+  slots.forEach(time => {
+    const appt = dayData[time];
+    let name = 'פנוי', type = '', price = '';
+    if (appt && appt.canceled) { name = 'תור בוטל'; type = appt.type && PRICES[appt.type] ? PRICES[appt.type].label : ''; }
+    else if (appt && appt.name) {
+      name = appt.name;
+      type = PRICES[appt.type] ? PRICES[appt.type].label : '';
+      price = PRICES[appt.type] ? `₪${PRICES[appt.type].price}` : '';
+    }
+    rows += `<tr><td>${time}</td><td>${name}</td><td>${type}</td><td>${price}</td></tr>`;
+  });
+  document.getElementById('printArea').innerHTML = `
+    <div class="print-header">
+      <h2>יומן תורים - מרפאה</h2>
+      <div>${dow===1?'יום שני':'יום רביעי'}, ${d.toLocaleDateString('he-IL')} — ${hebrewDate(d)}</div>
+    </div>
+    <table class="print-table">
+      <thead><tr><th>שעה</th><th>מטופל</th><th>סוג ביקור</th><th>מחיר</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  window.print();
+}
+
+// ─── TOAST ─────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+renderTariffStrip();
+</script>
+</body>
+</html>
